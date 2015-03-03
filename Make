@@ -1,0 +1,48 @@
+#
+# Compiler flags
+#
+NVCC = nvcc
+NVCCFLAGS = -arch=sm_20 -O2
+LINKFLAGS = -arch=sm_20
+OBJ_DIR = obj
+SRC_DIR = source
+
+#
+# Extra libs
+#
+HDFPATH =    libraries/hdf/lib
+SZPATH =     libraries/szip/lib
+HDFINCLUDE = libraries/hdf/include
+HDFLIB =     $(HDFPATH)/libhdf5.a $(HDFPATH)/libhdf5_cpp.a $(HDFPATH)/libhdf5_hl.a $(SZPATH)/libsz.a -lz
+
+#
+# Files
+#
+TARGET = MD.x
+SRC = $(wildcard $(SRC_DIR)/*.cu)
+OBJECTS = $(addprefix $(OBJ_DIR)/,$(notdir $(SRC:.cu=.o)))
+
+#
+# Rules
+#
+
+all : $(TARGET)
+
+$(OBJ_DIR)/%.o : $(SRC_DIR)/%.cu
+	$(NVCC) $(NVCCFLAGS) -I$(HDFINCLUDE) -c $< -o $@
+	$(NVCC) $(NVCCFLAGS) -I$(HDFINCLUDE) -M $< > $(OBJ_DIR)/$*.d
+	@mv -f $(OBJ_DIR)/$*.d $(OBJ_DIR)/$*.d.tmp
+	@sed -e 's|.*:|$(OBJ_DIR)/$*.o:|' < $(OBJ_DIR)/$*.d.tmp > $(OBJ_DIR)/$*.d
+	@rm -f $(OBJ_DIR)/$*.d.tmp
+
+$(TARGET) : $(OBJECTS)
+	$(NVCC) $(LINKFLAGS) $(HDFLIB) $^ -o $@
+
+clean : 
+	rm -f $(OBJ_DIR)/*.o $(OBJ_DIR)/*.d $(TARGET)
+
+#
+# Dependencies
+#
+-include $(OBJECTS:.o=.d)
+
